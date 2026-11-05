@@ -1,0 +1,7 @@
+{
+  "commands": [
+    { "name": "start", "description": "Начать" },
+    { "name": "tasks", "description": "Текущие задачи" },
+    { "name": "fio", "description": "ФИО" }
+  ]
+}

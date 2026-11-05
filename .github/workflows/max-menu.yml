@@ -1,0 +1,43 @@
+name: Меню бота MAX
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "max/commands.json"
+
+jobs:
+  set-commands:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Проверить, что токен добавлен
+        env:
+          MAX_TOKEN: ${{ secrets.MAX_TOKEN }}
+        run: |
+          if [ -z "$MAX_TOKEN" ]; then
+            echo "::error::Секрет MAX_TOKEN не найден. Добавьте его: Settings → Secrets and variables → Actions → New repository secret."
+            exit 1
+          fi
+
+      - name: Сертификаты Минцифры (нужны для API MAX)
+        run: |
+          cp /etc/ssl/certs/ca-certificates.crt bundle.pem
+          for f in russian_trusted_root_ca_pem.crt russian_trusted_sub_ca_pem.crt; do
+            curl -fsSL "https://gu-st.ru/content/lending/$f" >> bundle.pem && echo >> bundle.pem || echo "Не удалось скачать $f"
+          done
+
+      - name: Отправить меню в MAX
+        env:
+          MAX_TOKEN: ${{ secrets.MAX_TOKEN }}
+        run: |
+          code=$(curl -sS -o response.json -w "%{http_code}" --cacert bundle.pem \
+            -X PATCH "https://platform-api2.max.ru/me/commands" \
+            -H "Authorization: $MAX_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data @max/commands.json)
+          echo "Ответ MAX: HTTP $code"
+          cat response.json; echo
+          if [ "$code" != "200" ]; then exit 1; fi
